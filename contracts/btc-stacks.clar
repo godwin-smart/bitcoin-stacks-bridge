@@ -100,3 +100,11 @@
         (ok true)
     )
 )
+
+(define-public (pause-bridge)
+    (begin
+        (asserts! (is-eq tx-sender BRIDGE-ADMIN) ERR-NOT-AUTHORIZED)
+        (var-set bridge-paused true)
+        (ok true)
+    )
+)
