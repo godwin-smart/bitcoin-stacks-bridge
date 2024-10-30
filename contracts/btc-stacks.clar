@@ -42,3 +42,8 @@
 )
 
 (define-map bridge-balances principal uint)
+
+;; Read-only functions
+(define-read-only (get-deposit (tx-hash (buff 32)))
+    (map-get? deposits {tx-hash: tx-hash})
+)
