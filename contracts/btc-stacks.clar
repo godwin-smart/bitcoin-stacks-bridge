@@ -40,3 +40,5 @@
     { tx-hash: (buff 32), validator: principal }
     { signature: (buff 65) }
 )
+
+(define-map bridge-balances principal uint)
