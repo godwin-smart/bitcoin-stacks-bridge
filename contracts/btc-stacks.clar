@@ -55,3 +55,7 @@
 (define-read-only (get-validator-status (validator principal))
     (default-to false (map-get? validators validator))
 )
+
+(define-read-only (get-balance (user principal))
+    (default-to u0 (map-get? bridge-balances user))
+)
