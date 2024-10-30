@@ -146,3 +146,39 @@
         (ok true)
     )
 )
+
+
+
+(define-public (confirm-deposit 
+    (tx-hash (buff 32))
+    (signature (buff 65))
+)
+    (let (
+        (deposit (unwrap! (map-get? deposits {tx-hash: tx-hash}) ERR-INVALID-BRIDGE-STATUS))
+        (is-validator (unwrap! (map-get? validators tx-sender) ERR-NOT-AUTHORIZED))
+    )
+        (asserts! (not (var-get bridge-paused)) ERR-BRIDGE-PAUSED)
+        (asserts! (not (get processed deposit)) ERR-ALREADY-PROCESSED)
+        (asserts! (>= (get confirmations deposit) REQUIRED_CONFIRMATIONS) ERR-INVALID-BRIDGE-STATUS)
+        
+        ;; Store validator signature
+        (map-set validator-signatures
+            {tx-hash: tx-hash, validator: tx-sender}
+            {signature: signature}
+        )
+        
+        ;; Update deposit status and bridge balances
+        (map-set deposits
+            {tx-hash: tx-hash}
+            (merge deposit {processed: true})
+        )
+        
+        (map-set bridge-balances
+            (get recipient deposit)
+            (+ (get-balance (get recipient deposit)) (get amount deposit))
+        )
+        
+        (var-set total-bridged-amount (+ (var-get total-bridged-amount) (get amount deposit)))
+        (ok true)
+    )
+)
