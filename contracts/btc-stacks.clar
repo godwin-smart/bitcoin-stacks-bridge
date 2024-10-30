@@ -11,3 +11,9 @@
 (define-constant ERR-INVALID-SIGNATURE (err u1004))
 (define-constant ERR-ALREADY-PROCESSED (err u1005))
 (define-constant ERR-BRIDGE-PAUSED (err u1006))
+
+;; Constants
+(define-constant BRIDGE-ADMIN (as-contract tx-sender))
+(define-constant MIN-DEPOSIT-AMOUNT u100000) ;; 0.001 BTC in sats
+(define-constant MAX-DEPOSIT-AMOUNT u1000000000) ;; 10 BTC in sats
+(define-constant REQUIRED_CONFIRMATIONS u6)
