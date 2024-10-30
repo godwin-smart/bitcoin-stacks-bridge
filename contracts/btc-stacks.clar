@@ -91,3 +91,12 @@
         (ok true)
     )
 )
+
+;; Public functions
+(define-public (initialize-bridge)
+    (begin
+        (asserts! (is-eq tx-sender BRIDGE-ADMIN) ERR-NOT-AUTHORIZED)
+        (var-set bridge-paused false)
+        (ok true)
+    )
+)
