@@ -79,7 +79,6 @@
     )
 )
 
-
 (define-private (update-deposit-confirmations (tx-hash (buff 32)) (new-confirmations uint))
     (let (
         (deposit (unwrap! (map-get? deposits {tx-hash: tx-hash}) ERR-INVALID-BRIDGE-STATUS))
@@ -108,7 +107,6 @@
         (ok true)
     )
 )
-
 
 (define-public (add-validator (validator principal))
     (begin
@@ -147,8 +145,6 @@
     )
 )
 
-
-
 (define-public (confirm-deposit 
     (tx-hash (buff 32))
     (signature (buff 65))
@@ -183,7 +179,6 @@
     )
 )
 
-
 (define-public (withdraw 
     (amount uint)
     (btc-recipient (buff 34))
@@ -209,6 +204,20 @@
         })
         
         (var-set total-bridged-amount (- (var-get total-bridged-amount) amount))
+        (ok true)
+    )
+)
+
+;; Emergency functions
+(define-public (emergency-withdraw (amount uint) (recipient principal))
+    (begin
+        (asserts! (is-eq tx-sender BRIDGE-ADMIN) ERR-NOT-AUTHORIZED)
+        (asserts! (>= (var-get total-bridged-amount) amount) ERR-INSUFFICIENT-BALANCE)
+        
+        (map-set bridge-balances
+            recipient
+            (+ (get-balance recipient) amount)
+        )
         (ok true)
     )
 )
