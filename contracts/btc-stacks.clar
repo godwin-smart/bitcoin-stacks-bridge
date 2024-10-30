@@ -22,3 +22,15 @@
 (define-data-var bridge-paused bool false)
 (define-data-var total-bridged-amount uint u0)
 (define-data-var last-processed-height uint u0)
+
+;; Data maps
+(define-map deposits 
+    { tx-hash: (buff 32) }
+    {
+        amount: uint,
+        recipient: principal,
+        processed: bool,
+        confirmations: uint,
+        timestamp: uint
+    }
+)
