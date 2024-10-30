@@ -108,3 +108,12 @@
         (ok true)
     )
 )
+
+
+(define-public (add-validator (validator principal))
+    (begin
+        (asserts! (is-eq tx-sender BRIDGE-ADMIN) ERR-NOT-AUTHORIZED)
+        (map-set validators validator true)
+        (ok true)
+    )
+)
