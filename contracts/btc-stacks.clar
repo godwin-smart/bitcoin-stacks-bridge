@@ -117,3 +117,11 @@
         (ok true)
     )
 )
+
+(define-public (remove-validator (validator principal))
+    (begin
+        (asserts! (is-eq tx-sender BRIDGE-ADMIN) ERR-NOT-AUTHORIZED)
+        (map-delete validators validator)
+        (ok true)
+    )
+)
