@@ -182,3 +182,33 @@
         (ok true)
     )
 )
+
+
+(define-public (withdraw 
+    (amount uint)
+    (btc-recipient (buff 34))
+)
+    (let (
+        (current-balance (get-balance tx-sender))
+    )
+        (asserts! (not (var-get bridge-paused)) ERR-BRIDGE-PAUSED)
+        (asserts! (>= current-balance amount) ERR-INSUFFICIENT-BALANCE)
+        
+        ;; Update user balance
+        (map-set bridge-balances
+            tx-sender
+            (- current-balance amount)
+        )
+        
+        ;; Emit withdrawal event for off-chain processing
+        (print {
+            type: "withdraw",
+            sender: tx-sender,
+            amount: amount,
+            btc-recipient: btc-recipient
+        })
+        
+        (var-set total-bridged-amount (- (var-get total-bridged-amount) amount))
+        (ok true)
+    )
+)
