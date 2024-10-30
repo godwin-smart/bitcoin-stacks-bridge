@@ -78,3 +78,16 @@
         (<= amount MAX-DEPOSIT_AMOUNT)
     )
 )
+
+
+(define-private (update-deposit-confirmations (tx-hash (buff 32)) (new-confirmations uint))
+    (let (
+        (deposit (unwrap! (map-get? deposits {tx-hash: tx-hash}) ERR-INVALID-BRIDGE-STATUS))
+    )
+        (map-set deposits
+            {tx-hash: tx-hash}
+            (merge deposit {confirmations: new-confirmations})
+        )
+        (ok true)
+    )
+)
