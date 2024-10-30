@@ -34,3 +34,9 @@
         timestamp: uint
     }
 )
+
+(define-map validators principal bool)
+(define-map validator-signatures
+    { tx-hash: (buff 32), validator: principal }
+    { signature: (buff 65) }
+)
