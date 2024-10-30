@@ -51,3 +51,7 @@
 (define-read-only (get-bridge-status)
     (var-get bridge-paused)
 )
+
+(define-read-only (get-validator-status (validator principal))
+    (default-to false (map-get? validators validator))
+)
