@@ -125,3 +125,24 @@
         (ok true)
     )
 )
+
+(define-public (initiate-deposit (tx-hash (buff 32)) (amount uint) (recipient principal))
+    (begin
+        (asserts! (not (var-get bridge-paused)) ERR-BRIDGE-PAUSED)
+        (asserts! (validate-deposit-amount amount) ERR-INVALID-AMOUNT)
+        (asserts! (map-get? validators tx-sender) ERR-NOT-AUTHORIZED)
+        (asserts! (is-none (map-get? deposits {tx-hash: tx-hash})) ERR-ALREADY-PROCESSED)
+        
+        (map-set deposits
+            {tx-hash: tx-hash}
+            {
+                amount: amount,
+                recipient: recipient,
+                processed: false,
+                confirmations: u0,
+                timestamp: block-height
+            }
+        )
+        (ok true)
+    )
+)
