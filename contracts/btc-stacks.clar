@@ -1,7 +1,13 @@
 ;; Bitcoin-Stacks Bridge Contract
 ;; Enables secure cross-chain transfers between Bitcoin and Stacks networks
 
-(use-trait sip-010-trait .sip-010-trait.sip-010-trait)
+;; Define trait for future token compatibility
+(define-trait bridgeable-token-trait
+    (
+        (transfer (uint principal principal) (response bool uint))
+        (get-balance (principal) (response uint uint))
+    )
+)
 
 ;; Error codes
 (define-constant ERR-NOT-AUTHORIZED (err u1000))
@@ -13,10 +19,10 @@
 (define-constant ERR-BRIDGE-PAUSED (err u1006))
 
 ;; Constants
-(define-constant BRIDGE-ADMIN (as-contract tx-sender))
+(define-constant CONTRACT-OWNER tx-sender)
 (define-constant MIN-DEPOSIT-AMOUNT u100000) ;; 0.001 BTC in sats
 (define-constant MAX-DEPOSIT-AMOUNT u1000000000) ;; 10 BTC in sats
-(define-constant REQUIRED_CONFIRMATIONS u6)
+(define-constant REQUIRED-CONFIRMATIONS u6)
 
 ;; Data variables
 (define-data-var bridge-paused bool false)
@@ -31,14 +37,15 @@
         recipient: principal,
         processed: bool,
         confirmations: uint,
-        timestamp: uint
+        timestamp: uint,
+        btc-sender: (buff 33)
     }
 )
 
 (define-map validators principal bool)
 (define-map validator-signatures
     { tx-hash: (buff 32), validator: principal }
-    { signature: (buff 65) }
+    { signature: (buff 65), timestamp: uint }
 )
 
 (define-map bridge-balances principal uint)
@@ -75,7 +82,7 @@
 (define-private (validate-deposit-amount (amount uint))
     (and 
         (>= amount MIN-DEPOSIT-AMOUNT)
-        (<= amount MAX-DEPOSIT_AMOUNT)
+        (<= amount MAX-DEPOSIT-AMOUNT)
     )
 )
 
@@ -94,7 +101,7 @@
 ;; Public functions
 (define-public (initialize-bridge)
     (begin
-        (asserts! (is-eq tx-sender BRIDGE-ADMIN) ERR-NOT-AUTHORIZED)
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
         (var-set bridge-paused false)
         (ok true)
     )
@@ -102,15 +109,24 @@
 
 (define-public (pause-bridge)
     (begin
-        (asserts! (is-eq tx-sender BRIDGE-ADMIN) ERR-NOT-AUTHORIZED)
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
         (var-set bridge-paused true)
+        (ok true)
+    )
+)
+
+(define-public (resume-bridge)
+    (begin
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+        (asserts! (var-get bridge-paused) ERR-INVALID-BRIDGE-STATUS)
+        (var-set bridge-paused false)
         (ok true)
     )
 )
 
 (define-public (add-validator (validator principal))
     (begin
-        (asserts! (is-eq tx-sender BRIDGE-ADMIN) ERR-NOT-AUTHORIZED)
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
         (map-set validators validator true)
         (ok true)
     )
@@ -118,17 +134,22 @@
 
 (define-public (remove-validator (validator principal))
     (begin
-        (asserts! (is-eq tx-sender BRIDGE-ADMIN) ERR-NOT-AUTHORIZED)
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
         (map-delete validators validator)
         (ok true)
     )
 )
 
-(define-public (initiate-deposit (tx-hash (buff 32)) (amount uint) (recipient principal))
+(define-public (initiate-deposit 
+    (tx-hash (buff 32)) 
+    (amount uint) 
+    (recipient principal)
+    (btc-sender (buff 33))
+)
     (begin
         (asserts! (not (var-get bridge-paused)) ERR-BRIDGE-PAUSED)
         (asserts! (validate-deposit-amount amount) ERR-INVALID-AMOUNT)
-        (asserts! (map-get? validators tx-sender) ERR-NOT-AUTHORIZED)
+        (asserts! (unwrap! (map-get? validators tx-sender) ERR-NOT-AUTHORIZED) ERR-NOT-AUTHORIZED)
         (asserts! (is-none (map-get? deposits {tx-hash: tx-hash})) ERR-ALREADY-PROCESSED)
         
         (map-set deposits
@@ -138,7 +159,8 @@
                 recipient: recipient,
                 processed: false,
                 confirmations: u0,
-                timestamp: block-height
+                timestamp: block-height,
+                btc-sender: btc-sender
             }
         )
         (ok true)
@@ -155,12 +177,12 @@
     )
         (asserts! (not (var-get bridge-paused)) ERR-BRIDGE-PAUSED)
         (asserts! (not (get processed deposit)) ERR-ALREADY-PROCESSED)
-        (asserts! (>= (get confirmations deposit) REQUIRED_CONFIRMATIONS) ERR-INVALID-BRIDGE-STATUS)
+        (asserts! (>= (get confirmations deposit) REQUIRED-CONFIRMATIONS) ERR-INVALID-BRIDGE-STATUS)
         
         ;; Store validator signature
         (map-set validator-signatures
             {tx-hash: tx-hash, validator: tx-sender}
-            {signature: signature}
+            {signature: signature, timestamp: block-height}
         )
         
         ;; Update deposit status and bridge balances
@@ -188,6 +210,7 @@
     )
         (asserts! (not (var-get bridge-paused)) ERR-BRIDGE-PAUSED)
         (asserts! (>= current-balance amount) ERR-INSUFFICIENT-BALANCE)
+        (asserts! (validate-deposit-amount amount) ERR-INVALID-AMOUNT)
         
         ;; Update user balance
         (map-set bridge-balances
@@ -200,7 +223,8 @@
             type: "withdraw",
             sender: tx-sender,
             amount: amount,
-            btc-recipient: btc-recipient
+            btc-recipient: btc-recipient,
+            timestamp: block-height
         })
         
         (var-set total-bridged-amount (- (var-get total-bridged-amount) amount))
@@ -211,7 +235,7 @@
 ;; Emergency functions
 (define-public (emergency-withdraw (amount uint) (recipient principal))
     (begin
-        (asserts! (is-eq tx-sender BRIDGE-ADMIN) ERR-NOT-AUTHORIZED)
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
         (asserts! (>= (var-get total-bridged-amount) amount) ERR-INSUFFICIENT-BALANCE)
         
         (map-set bridge-balances
